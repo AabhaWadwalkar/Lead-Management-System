@@ -1,52 +1,103 @@
-import { Box, Button, IconButton, Typography, useTheme } from "@mui/material";
+import React, { useEffect, useState } from "react";
+import { Box, Button, Typography, useTheme } from "@mui/material";
 import { tokens } from "../../theme";
-import { mockTransactions } from "../../data/mockData";
-import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
-import EmailIcon from "@mui/icons-material/Email";
-import PointOfSaleIcon from "@mui/icons-material/PointOfSale";
-import PersonAddIcon from "@mui/icons-material/PersonAdd";
-import TrafficIcon from "@mui/icons-material/Traffic";
+import TaskAltIcon from "@mui/icons-material/TaskAlt";
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import Header from "../../components/Header";
-import LineChart from "../../components/LineChart";
-import GeographyChart from "../../components/GeographyChart";
-import BarChart from "../../components/BarChart";
-import StatBox from "../../components/StatBox";
-import ProgressCircle from "../../components/ProgressCircle";
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import PersonIcon from '@mui/icons-material/Person';
+import StatBox from "../../components/StatBox"; 
+import { useNavigate } from "react-router-dom";
+import { DataGrid } from "@mui/x-data-grid"; // DataGrid for tables
 
-const Dashboard = () => {
+const LeadManagementDashboard = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const navigate = useNavigate();
+
+  // State to hold leads data
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch leads data on component mount
+  useEffect(() => {
+    fetch("http://localhost:8000/get")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to fetch data");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        setLeads(data); // Set the fetched data to the leads state
+        setLoading(false);
+      })
+      .catch((error) => {
+        setError(error.message);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <p>Loading Leads...</p>;
+  if (error) return <p>Error: {error}</p>;
+
+  // Lead statistics calculations based on the data
+  const totalLeads = leads.length;
+  const qualifiedLeads = leads.filter((lead) => lead.stage === "Qualified").length;
+  const convertedLeads = leads.filter((lead) => lead.status === "Converted").length;
+  const engagedLeads = leads.filter((lead) => lead.status === "Engaged").length;
+
+  const leadStatuses = Object.values(
+    leads.reduce((acc, lead) => {
+      const status = lead.status || "Unknown";
+      acc[status] = acc[status] || { id: status, label: status, value: 0 };
+      acc[status].value += 1;
+      return acc;
+    }, {})
+  );
+  
+
+  const followUpColumns = [
+    { field: "name", headerName: "Lead Name", flex: 1 },
+    { field: "followupdate", headerName: "Follow-up Date", flex: 1 },
+  ];
+
+  const handleRowClick = (params) => {
+    navigate(`/lead/${params.row._id}`, { state: params.row });
+  };
 
   return (
     <Box m="20px">
       {/* HEADER */}
       <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Header title="DASHBOARD" subtitle="Welcome to your dashboard" />
+        <Header title="Dashboard" subtitle="Overview of your leads" />
 
         <Box>
           <Button
             sx={{
-              backgroundColor: colors.blueAccent[700],
-              color: colors.grey[100],
+              backgroundColor: "rgb(5,78,90)",
+              color: "#fff",
               fontSize: "14px",
               fontWeight: "bold",
               padding: "10px 20px",
             }}
+          onClick={()=> navigate("/allleads")}
           >
-            <DownloadOutlinedIcon sx={{ mr: "10px" }} />
-            Download Reports
+            <PersonIcon sx={{ mr: "10px" }} />
+            Show Leads
           </Button>
         </Box>
       </Box>
 
-      {/* GRID & CHARTS */}
+      {/* GRID & STATS */}
       <Box
         display="grid"
         gridTemplateColumns="repeat(12, 1fr)"
         gridAutoRows="140px"
         gap="20px"
       >
-        {/* ROW 1 */}
+        {/* ROW 1 - Lead Stats */}
         <Box
           gridColumn="span 3"
           backgroundColor={colors.primary[400]}
@@ -55,13 +106,14 @@ const Dashboard = () => {
           justifyContent="center"
         >
           <StatBox
-            title="12,361"
-            subtitle="Emails Sent"
+            title={totalLeads}
+            color="black"
+            subtitle="Total Leads"
             progress="0.75"
             increase="+14%"
             icon={
-              <EmailIcon
-                sx={{ color: colors.greenAccent[600], fontSize: "26px" }}
+              <PersonIcon
+                sx={{ color: "rgb(5,78,90)", fontSize: "30px" }}
               />
             }
           />
@@ -74,13 +126,13 @@ const Dashboard = () => {
           justifyContent="center"
         >
           <StatBox
-            title="431,225"
-            subtitle="Sales Obtained"
+            title={qualifiedLeads}
+            subtitle="Qualified Leads"
             progress="0.50"
             increase="+21%"
             icon={
-              <PointOfSaleIcon
-                sx={{ color: colors.greenAccent[600], fontSize: "26px" }}
+              <TaskAltIcon
+                sx={{ color: "rgb(5,78,90)", fontSize: "26px" }}
               />
             }
           />
@@ -93,13 +145,13 @@ const Dashboard = () => {
           justifyContent="center"
         >
           <StatBox
-            title="32,441"
-            subtitle="New Clients"
+            title={convertedLeads}
+            subtitle="Converted Leads"
             progress="0.30"
             increase="+5%"
             icon={
               <PersonAddIcon
-                sx={{ color: colors.greenAccent[600], fontSize: "26px" }}
+                sx={{ color: "rgb(5,78,90)", fontSize: "26px" }}
               />
             }
           />
@@ -112,173 +164,119 @@ const Dashboard = () => {
           justifyContent="center"
         >
           <StatBox
-            title="1,325,134"
-            subtitle="Traffic Received"
+            title={engagedLeads}
+            subtitle="Engaged Leads"
             progress="0.80"
             increase="+43%"
             icon={
-              <TrafficIcon
-                sx={{ color: colors.greenAccent[600], fontSize: "26px" }}
+              <PeopleAltIcon
+                sx={{ color: "rgb(5,78,90)", fontSize: "26px" }}
               />
             }
           />
         </Box>
 
-        {/* ROW 2 */}
-        <Box
-          gridColumn="span 8"
-          gridRow="span 2"
-          backgroundColor={colors.primary[400]}
-        >
-          <Box
-            mt="25px"
-            p="0 30px"
-            display="flex "
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            <Box>
-              <Typography
-                variant="h5"
-                fontWeight="600"
-                color={colors.grey[100]}
-              >
-                Revenue Generated
-              </Typography>
-              <Typography
-                variant="h3"
-                fontWeight="bold"
-                color={colors.greenAccent[500]}
-              >
-                $59,342.32
-              </Typography>
-            </Box>
-            <Box>
-              <IconButton>
-                <DownloadOutlinedIcon
-                  sx={{ fontSize: "26px", color: colors.greenAccent[500] }}
-                />
-              </IconButton>
-            </Box>
-          </Box>
-          <Box height="250px" m="-20px 0 0 0">
-            <LineChart isDashboard={true} />
-          </Box>
-        </Box>
-        <Box
-          gridColumn="span 4"
-          gridRow="span 2"
-          backgroundColor={colors.primary[400]}
-          overflow="auto"
-        >
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-            borderBottom={`4px solid ${colors.primary[500]}`}
-            colors={colors.grey[100]}
-            p="15px"
-          >
-            <Typography color={colors.grey[100]} variant="h5" fontWeight="600">
-              Recent Transactions
-            </Typography>
-          </Box>
-          {mockTransactions.map((transaction, i) => (
-            <Box
-              key={`${transaction.txId}-${i}`}
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-              borderBottom={`4px solid ${colors.primary[500]}`}
-              p="15px"
-            >
-              <Box>
-                <Typography
-                  color={colors.greenAccent[500]}
-                  variant="h5"
-                  fontWeight="600"
-                >
-                  {transaction.txId}
-                </Typography>
-                <Typography color={colors.grey[100]}>
-                  {transaction.user}
-                </Typography>
-              </Box>
-              <Box color={colors.grey[100]}>{transaction.date}</Box>
-              <Box
-                backgroundColor={colors.greenAccent[500]}
-                p="5px 10px"
-                borderRadius="4px"
-              >
-                ${transaction.cost}
-              </Box>
-            </Box>
-          ))}
-        </Box>
+<Box
+  gridColumn="span 6"
+  gridRow="span 2"
+  backgroundColor={colors.primary[400]}
+  p="30px"
+  borderRadius="10px"
+>
+  <Typography variant="h5" fontWeight="600" mb="15px" fontSize="20px">
+    Lead Status Distribution
+  </Typography>
 
-        {/* ROW 3 */}
+  {leadStatuses.length > 0 ? (
+    (() => {
+      const maxValue = Math.max(...leadStatuses.map((s) => s.value));
+
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {leadStatuses.map((item) => (
+            <div key={item.label}>
+              <Typography variant="h4" style={{ color: "black", marginBottom: "4px" }}>
+                {item.label} ({item.value})
+              </Typography>
+              <div
+                style={{
+                  height: "20px",
+                  width: `${(item.value / maxValue) * 100}%`,
+                  backgroundColor: "rgb(5,78,90)",
+                  borderRadius: "4px",
+                  transition: "width 0.3s",
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      );
+    })()
+  ) : (
+    <Typography color="#fff">No lead status data</Typography>
+  )}
+</Box>
+
+        {/* ROW 3 - Leads by Stage in Table Format */}
+
         <Box
-          gridColumn="span 4"
+          gridColumn="span 6"
           gridRow="span 2"
           backgroundColor={colors.primary[400]}
           p="30px"
+          height="720px"
         >
-          <Typography variant="h5" fontWeight="600">
-            Campaign
+          <Typography variant="h5" fontWeight="600" fontSize="20px" mb="15px">
+            Leads by Stage
           </Typography>
-          <Box
-            display="flex"
-            flexDirection="column"
-            alignItems="center"
-            mt="25px"
-          >
-            <ProgressCircle size="125" />
-            <Typography
-              variant="h5"
-              color={colors.greenAccent[500]}
-              sx={{ mt: "15px" }}
-            >
-              $48,352 revenue generated
-            </Typography>
-            <Typography>Includes extra misc expenditures and costs</Typography>
+          <Box height="300px">
+            <DataGrid
+              rows={leads.map((lead) => ({
+                id: lead._id, // Use _id as the unique identifier
+                name: lead.name, // Assuming "name" field exists in your data
+                stage: lead.stage // Assuming "stage" field exists in your data
+              }))}
+              columns={[
+                { field: "name", headerName: "Lead Name", flex: 1 },
+                { field: "stage", headerName: "Stage", flex: 1 }
+              ]}
+              pageSize={5}
+              checkboxSelection
+              onRowClick={handleRowClick}
+              style={{ cursor: "pointer", fontWeight: "300", fontSize: "20px" }}
+            />
           </Box>
         </Box>
+
+        {/* ROW 4 - Upcoming Follow-ups in Table Format */}
         <Box
-          gridColumn="span 4"
+          gridColumn="span 6"
           gridRow="span 2"
           backgroundColor={colors.primary[400]}
+          p="30px"
+          height="400px"
         >
-          <Typography
-            variant="h5"
-            fontWeight="600"
-            sx={{ padding: "30px 30px 0 30px" }}
-          >
-            Sales Quantity
+          <Typography variant="h5" fontWeight="600" mb="15px" fontSize="20px">
+            Upcoming Follow-ups
           </Typography>
-          <Box height="250px" mt="-20px">
-            <BarChart isDashboard={true} />
+          <Box height="300px">
+            <DataGrid
+              rows={leads}
+              columns={followUpColumns}
+              pageSize={5}
+              checkboxSelection
+              onRowClick={handleRowClick}
+              getRowId={(row) => row._id}  // Specify the _id as the unique identifier
+              style={{ cursor: "pointer", fontWeight: "300", fontSize: "20px" }}
+            />
+
           </Box>
         </Box>
-        <Box
-          gridColumn="span 4"
-          gridRow="span 2"
-          backgroundColor={colors.primary[400]}
-          padding="30px"
-        >
-          <Typography
-            variant="h5"
-            fontWeight="600"
-            sx={{ marginBottom: "15px" }}
-          >
-            Geography Based Traffic
-          </Typography>
-          <Box height="200px">
-            <GeographyChart isDashboard={true} />
-          </Box>
-        </Box>
+
+
       </Box>
     </Box>
   );
 };
 
-export default Dashboard;
+export default LeadManagementDashboard;
